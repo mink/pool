@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"time"
+)
+
 type Pool struct {
 	Config  *PoolConfig
 	Factory func() (interface{}, error)
@@ -20,11 +25,20 @@ func NewPool(config *PoolConfig, factory func() (interface{}, error)) *Pool {
 }
 
 func (pool *Pool) Populate() {
-	for len(pool.Channel) < pool.Config.Min {
+	for i := len(pool.Channel); i < pool.Config.Min; i++ {
 		conn, err := pool.Factory()
 		if err != nil {
 			panic(err)
 		}
 		pool.Channel <- conn
+	}
+}
+
+func (pool *Pool) Get() (interface{}, error) {
+	select {
+	case conn := <-pool.Channel:
+		return conn, nil
+	case <-time.After(time.Second):
+		return nil, fmt.Errorf("timeout getting connection")
 	}
 }
