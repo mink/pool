@@ -12,8 +12,9 @@ type Pool[T any] struct {
 }
 
 type PoolConfig struct {
-	Min int
-	Max int
+	Min            int
+	Max            int
+	FactoryTimeout time.Duration
 }
 
 func NewPool[T any](config *PoolConfig, factory func() (T, error)) *Pool[T] {
@@ -35,10 +36,11 @@ func (pool *Pool[T]) Populate() {
 }
 
 func (pool *Pool[T]) Get() (interface{}, error) {
+	go pool.Populate()
 	select {
 	case conn := <-pool.Channel:
 		return conn, nil
-	case <-time.After(time.Second):
-		return nil, fmt.Errorf("timeout getting connection")
+	case <-time.After(pool.Config.FactoryTimeout):
+		return nil, fmt.Errorf("pool factory timeout")
 	}
 }

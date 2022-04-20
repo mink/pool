@@ -3,6 +3,7 @@ package main
 import (
 	"net"
 	"testing"
+	"time"
 )
 
 func init() {
@@ -23,8 +24,9 @@ func init() {
 
 func TestTCPConnection(t *testing.T) {
 	pool := NewPool(&PoolConfig{
-		Min: 1,
-		Max: 5,
+		Min:            1,
+		Max:            5,
+		FactoryTimeout: time.Second,
 	}, func() (interface{}, error) {
 		conn, err := net.Dial("tcp", "0.0.0.0:30000")
 		if err != nil {
@@ -41,8 +43,9 @@ func TestTCPConnection(t *testing.T) {
 
 func TestPoolPopulation(t *testing.T) {
 	pool := NewPool(&PoolConfig{
-		Min: 2,
-		Max: 5,
+		Min:            2,
+		Max:            5,
+		FactoryTimeout: time.Second,
 	}, func() (interface{}, error) {
 		conn, err := net.Dial("tcp", "0.0.0.0:30000")
 		if err != nil {
@@ -60,8 +63,9 @@ func TestPoolPopulation(t *testing.T) {
 
 func TestGetConnection(t *testing.T) {
 	pool := NewPool(&PoolConfig{
-		Min: 2,
-		Max: 5,
+		Min:            2,
+		Max:            5,
+		FactoryTimeout: time.Second,
 	}, func() (interface{}, error) {
 		conn, err := net.Dial("tcp", "0.0.0.0:30000")
 		if err != nil {
@@ -78,10 +82,36 @@ func TestGetConnection(t *testing.T) {
 	}
 
 	if len(pool.Channel) != (pool.Config.Min - 1) {
-		t.Errorf("Pool channel size = %d, expected %d", len(pool.Channel), pool.Config.Min - 1)
+		t.Errorf("Pool channel size = %d, expected %d", len(pool.Channel), pool.Config.Min-1)
 	}
 
 	if _, ok := conn.(*net.TCPConn); !ok {
 		t.Error("Connection received is of incorrect type")
+	}
+}
+
+func TestFactoryTimeout(t *testing.T) {
+	config := &PoolConfig{
+		Min:            1,
+		Max:            2,
+		FactoryTimeout: time.Millisecond * 50,
+	}
+	pool := NewPool(config, func() (string, error) {
+		time.Sleep(time.Second)
+		return "hello", nil
+	})
+
+	item, err := pool.Get()
+
+	if item != nil {
+		t.Errorf("item should be null, got %s", item)
+	}
+
+	if err == nil {
+		t.Error("error expected")
+	}
+
+	if err.Error() != "pool factory timeout" {
+		t.Errorf("expected error \"pool factory timeout\", got error \"%s\"\n", err)
 	}
 }
