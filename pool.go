@@ -35,7 +35,7 @@ func (pool *Pool[T]) Populate() {
 	}
 }
 
-func (pool *Pool[T]) Get() (interface{}, error) {
+func (pool *Pool[T]) Get() (T, error) {
 	go pool.Populate()
 	select {
 	case conn := <-pool.Channel:
