@@ -54,10 +54,14 @@ func TestPoolPopulation(t *testing.T) {
 		return conn, nil
 	})
 
+	if pool.Count() != 0 {
+		t.Errorf("Pool size = %d, expected %d", pool.Count(), 0)
+	}
+
 	pool.Populate()
 
-	if len(pool.Channel) != pool.Config.Min {
-		t.Errorf("Pool channel size = %d, expected %d", len(pool.Channel), pool.Config.Min)
+	if pool.Count() != pool.Config.Min {
+		t.Errorf("Pool size = %d, expected %d", pool.Count(), pool.Config.Min)
 	}
 }
 
@@ -76,13 +80,33 @@ func TestGetConnection(t *testing.T) {
 
 	pool.Populate()
 
+	if pool.Count() != pool.Config.Min {
+		t.Errorf("Pool size = %d, expected %d", pool.Count(), pool.Config.Min)
+	}
+
+	if pool.InPool != pool.Config.Min {
+		t.Errorf("Pool items in pool = %d, expected %d", pool.Count(), pool.Config.Min)
+	}
+
+	if pool.InUse != 0 {
+		t.Errorf("Pool items in use = %d, expected %d", pool.Count(), 0)
+	}
+
 	conn, err := pool.Get()
 	if err != nil {
 		t.Error(err)
 	}
 
-	if len(pool.Channel) != (pool.Config.Min - 1) {
-		t.Errorf("Pool channel size = %d, expected %d", len(pool.Channel), pool.Config.Min-1)
+	if pool.Count() != pool.Config.Min {
+		t.Errorf("Pool size = %d, expected %d", pool.Count(), pool.Config.Min)
+	}
+
+	if pool.InPool != (pool.Config.Min - 1) {
+		t.Errorf("Pool items in pool = %d, expected %d", pool.Count(), pool.Config.Min-1)
+	}
+
+	if pool.InUse != 1 {
+		t.Errorf("Pool items in use = %d, expected %d", pool.Count(), 1)
 	}
 
 	if _, ok := conn.(*net.TCPConn); !ok {
@@ -103,8 +127,8 @@ func TestFactoryTimeout(t *testing.T) {
 
 	item, err := pool.Get()
 
-	if item != nil {
-		t.Errorf("item should be null, got %s", item)
+	if item != "" {
+		t.Errorf("item should be empty string, got %s", item)
 	}
 
 	if err == nil {
