@@ -92,7 +92,7 @@ func TestGetConnection(t *testing.T) {
 		t.Errorf("Pool items in use = %d, expected %d", pool.Count(), 0)
 	}
 
-	conn, err := pool.Get()
+	conn, err := pool.Pop()
 	if err != nil {
 		t.Error(err)
 	}
@@ -125,8 +125,7 @@ func TestFactoryTimeout(t *testing.T) {
 		return "hello", nil
 	})
 
-	item, err := pool.Get()
-
+	item, err := pool.Pop()
 	if item != "" {
 		t.Errorf("item should be empty string, got %s", item)
 	}
@@ -137,5 +136,47 @@ func TestFactoryTimeout(t *testing.T) {
 
 	if err.Error() != "pool factory timeout" {
 		t.Errorf("expected error \"pool factory timeout\", got error \"%s\"\n", err)
+	}
+}
+
+func TestPoolPut(t *testing.T) {
+	config := &PoolConfig{
+		Min:            1,
+		Max:            2,
+		FactoryTimeout: time.Millisecond * 50,
+	}
+	pool := NewPool(config, func() (string, error) {
+		return "hello", nil
+	})
+
+	item, err := pool.Pop()
+	if err != nil {
+		t.Error(err)
+	}
+
+	if pool.InUse != 1 {
+		t.Errorf("Pool items in use = %d, expected %d", pool.Count(), 1)
+	}
+
+	if pool.InPool != 0 {
+		t.Errorf("Pool items in use = %d, expected %d", pool.Count(), 0)
+	}
+
+	ptrRef := &item
+
+	pool.Push(item)
+
+	if pool.InUse != 0 {
+		t.Errorf("Pool items in use = %d, expected %d", pool.Count(), 0)
+	}
+
+	if pool.InPool != 1 {
+		t.Errorf("Pool items in use = %d, expected %d", pool.Count(), 1)
+	}
+
+	item = <-pool.Channel
+
+	if &item != ptrRef {
+		t.Errorf("ponter reference should match the initial item pointer")
 	}
 }
