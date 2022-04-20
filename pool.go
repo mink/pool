@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-type Pool struct {
+type Pool[T any] struct {
 	Config  *PoolConfig
-	Factory func() (interface{}, error)
-	Channel chan interface{}
+	Factory func() (T, error)
+	Channel chan T
 }
 
 type PoolConfig struct {
@@ -16,15 +16,15 @@ type PoolConfig struct {
 	Max int
 }
 
-func NewPool(config *PoolConfig, factory func() (interface{}, error)) *Pool {
-	return &Pool{
+func NewPool[T any](config *PoolConfig, factory func() (T, error)) *Pool[T] {
+	return &Pool[T]{
 		Config:  config,
 		Factory: factory,
-		Channel: make(chan interface{}, config.Max),
+		Channel: make(chan T, config.Max),
 	}
 }
 
-func (pool *Pool) Populate() {
+func (pool *Pool[T]) Populate() {
 	for i := len(pool.Channel); i < pool.Config.Min; i++ {
 		conn, err := pool.Factory()
 		if err != nil {
@@ -34,7 +34,7 @@ func (pool *Pool) Populate() {
 	}
 }
 
-func (pool *Pool) Get() (interface{}, error) {
+func (pool *Pool[T]) Get() (interface{}, error) {
 	select {
 	case conn := <-pool.Channel:
 		return conn, nil
